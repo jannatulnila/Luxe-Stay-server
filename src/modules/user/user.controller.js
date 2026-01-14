@@ -1,55 +1,5 @@
-// import { UserService } from "./user.service.js";
-
-// const createUser = async (req, res) => {
-//   const user = await UserService.createUser(req.body);
-//   res.status(201).json({ success: true, data: user });
-// };
-
-// const getUsers = async (req, res) => {
-//   const users = await UserService.getAllUsers();
-//   res.json({ success: true, data: users });
-// };
-
-// export const UserController = {
-//   createUser,
-//   getUsers
-// };
-
-
-// import { User } from "./user.model.js";
-// import bcrypt from "bcryptjs";
-
-// export const registerUser = async (req, res) => {
-//   try {
-//     const { name, email, photo, password } = req.body;
-
-//     if (!email || !password) {
-//       return res.status(400).json({ message: "Email & password required" });
-//     }
-
-//     const existing = await User.findOne({ email });
-//     if (existing) {
-//       return res.status(400).json({ message: "User already exists" });
-//     }
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     await User.create({
-//       name,
-//       email,
-//       photo,
-//       password: hashedPassword,
-//     });
-
-//     res.status(201).json({ message: "Registration successful" });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-
-
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { User } from "./user.model.js";
 
 export const registerUser = async (req, res) => {
@@ -60,10 +10,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // password validation
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
-
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
         message:
@@ -91,6 +38,42 @@ export const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         photo: user.photo,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 🔐 LOGIN (FOR NEXTAUTH)
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        photo: user.photo,
+        role: user.role,
       },
     });
   } catch (error) {
